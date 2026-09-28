@@ -1,0 +1,49 @@
+# Claude Terminal
+
+A minimal macOS terminal app built for running Claude Code across multiple projects.
+
+- **Left sidebar**: your project folders. Click one to switch to its terminal.
+- **Right**: a real terminal (zsh login shell) opened in that project's folder. Each project keeps its own shell alive while you switch between them.
+- **Launch Claude** button runs `claude` in the active project.
+
+## Run
+
+```sh
+npm install   # first time only; compiles node-pty for Electron
+npm start
+```
+
+## Install as a Mac app (Spotlight / Dock)
+
+```sh
+npm run install-app
+```
+
+This packages the app with its icon and copies it to `/Applications/Claude Terminal.app`.
+Spotlight picks it up automatically. Re-run after making changes to update the installed copy.
+
+The app icon is drawn in `build/icon.svg`; `build/icon.icns` is generated from it.
+
+## Shortcuts
+
+| Keys        | Action                     |
+|-------------|----------------------------|
+| Cmd+N       | Add a project folder       |
+| Cmd+1 .. 9  | Switch to the Nth project  |
+
+## Debugging
+
+```sh
+CT_DEBUG=1 npm start                          # forwards renderer console + pty events to stdout
+CT_DEBUG=1 CT_SCREENSHOT=/tmp/shot.png npm start   # also saves a screenshot 2.5s after load
+```
+
+Projects are stored in `~/Library/Application Support/Claude Terminal/projects.json` (installed app) or `.../claude-terminal/projects.json` when run with `npm start`.
+
+## Layout
+
+```
+src/main.js            Electron main process: window, PTY spawning, project persistence
+src/preload.js         Safe IPC bridge exposed to the renderer as window.api
+src/renderer/          UI: index.html, style.css, renderer.js (xterm.js)
+```

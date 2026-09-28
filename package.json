@@ -1,0 +1,25 @@
+{
+  "name": "claude-terminal",
+  "version": "0.1.0",
+  "description": "A custom terminal app for running Claude Code across projects",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "electron-rebuild -f -w node-pty",
+    "build": "electron-packager . \"Claude Terminal\" --platform=darwin --arch=arm64 --out=dist --overwrite --icon=build/icon.icns --app-bundle-id=com.cwandt.claude-terminal --ignore=\"^/dist\" --ignore=\"^/build/icon.svg\" --prune=true --asar.unpackDir=\"node_modules/node-pty\"",
+    "install-app": "npm run build && rm -rf \"/Applications/Claude Terminal.app\" && cp -R \"dist/Claude Terminal-darwin-arm64/Claude Terminal.app\" /Applications/ && rm -rf dist && echo \"Installed to /Applications/Claude Terminal.app\""
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.1.0"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "@electron/rebuild": "^4.2.0",
+    "electron": "^44.4.5"
+  },
+  "productName": "Claude Terminal"
+}
