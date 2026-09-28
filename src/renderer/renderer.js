@@ -5,14 +5,16 @@ const FitAddonCtor = window.FitAddon.FitAddon;
 const WebLinksAddonCtor = window.WebLinksAddon.WebLinksAddon;
 
 const THEME = {
-  background: '#1a1b26',
-  foreground: '#c0caf5',
-  cursor: '#c0caf5',
-  selectionBackground: '#33467c',
-  black: '#15161e', red: '#f7768e', green: '#9ece6a', yellow: '#e0af68',
-  blue: '#7aa2f7', magenta: '#bb9af7', cyan: '#7dcfff', white: '#a9b1d6',
-  brightBlack: '#414868', brightRed: '#f7768e', brightGreen: '#9ece6a', brightYellow: '#e0af68',
-  brightBlue: '#7aa2f7', brightMagenta: '#bb9af7', brightCyan: '#7dcfff', brightWhite: '#c0caf5',
+  background: '#ffffff',
+  foreground: '#000000',
+  cursor: '#000000',
+  cursorAccent: '#ffffff',
+  selectionBackground: '#000000',
+  selectionForeground: '#ffffff',
+  black: '#000000', red: '#000000', green: '#000000', yellow: '#000000',
+  blue: '#000000', magenta: '#000000', cyan: '#000000', white: '#888888',
+  brightBlack: '#888888', brightRed: '#000000', brightGreen: '#000000', brightYellow: '#000000',
+  brightBlue: '#000000', brightMagenta: '#000000', brightCyan: '#000000', brightWhite: '#000000',
 };
 
 let projects = [];           // [{ id, name, path }]
@@ -33,12 +35,14 @@ function renderProjects() {
     li.className = 'project' + (p.id === activeId ? ' active' : '') + (sessions.get(p.id)?.running ? ' running' : '');
     li.dataset.id = p.id;
     li.innerHTML = `
-      <span class="dot"></span>
+      <span class="index"></span>
       <div class="info">
         <div class="name"></div>
         <div class="path"></div>
       </div>
+      <span class="dot" title="Shell running"></span>
       <button class="remove" title="Remove from list">×</button>`;
+    li.querySelector('.index').textContent = String(projects.indexOf(p) + 1).padStart(2, '0');
     li.querySelector('.name').textContent = p.name;
     li.querySelector('.path').textContent = p.path;
     li.querySelector('.path').title = p.path;
@@ -112,10 +116,11 @@ function ensureSession(project) {
 
   const term = new TerminalCtor({
     theme: THEME,
-    fontFamily: '"SF Mono", Menlo, Monaco, "Courier New", monospace',
-    fontSize: 13,
-    lineHeight: 1.2,
-    cursorBlink: true,
+    fontFamily: '"Space Mono", Menlo, monospace',
+    fontSize: 12,
+    lineHeight: 1.4,
+    cursorBlink: false,
+    cursorStyle: 'block',
     scrollback: 10000,
     macOptionIsMeta: true,
     allowProposedApi: true,
@@ -211,6 +216,11 @@ window.addEventListener('keydown', (e) => {
 
 // ---------- Init ----------
 (async () => {
+  // Make sure the terminal font is loaded before xterm measures glyphs.
+  await Promise.all([
+    document.fonts.load('400 12px "Space Mono"'),
+    document.fonts.load('700 12px "Space Mono"'),
+  ]).catch(() => {});
   projects = await window.api.loadProjects();
   renderProjects();
   updateMain();

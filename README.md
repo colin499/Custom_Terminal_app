@@ -24,6 +24,10 @@ Spotlight picks it up automatically. Re-run after making changes to update the i
 
 The app icon is drawn in `build/icon.svg`; `build/icon.icns` is generated from it.
 
+## Design
+
+Monochrome, Space Mono, straight 1px rules, no rounded corners. All colors and sizes are CSS variables at the top of `src/renderer/style.css`; the terminal palette is `THEME` in `src/renderer/renderer.js`. Space Mono is bundled in `src/renderer/fonts/` under the SIL Open Font License.
+
 ## Shortcuts
 
 | Keys        | Action                     |
