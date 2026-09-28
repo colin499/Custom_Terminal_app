@@ -41,6 +41,11 @@ function createWindow() {
     win.webContents.on('console-message', (ev) => console.log(`[renderer:${ev.level}] ${ev.message}`));
     win.webContents.on('did-finish-load', () => {
       console.log('[main] renderer loaded');
+      if (process.env.CT_EVAL) {
+        setTimeout(() => win.webContents.executeJavaScript(process.env.CT_EVAL)
+          .then((r) => console.log('[main] CT_EVAL result:', JSON.stringify(r)))
+          .catch((err) => console.log('[main] CT_EVAL error:', err.message)), 1000);
+      }
       if (process.env.CT_SCREENSHOT) {
         setTimeout(async () => {
           const img = await win.webContents.capturePage();
@@ -63,6 +68,15 @@ ipcMain.handle('projects:pickFolder', async () => {
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
+});
+
+ipcMain.handle('projects:resolveFolder', (_e, p) => {
+  try {
+    const st = fs.statSync(p);
+    return st.isDirectory() ? p : path.dirname(p);
+  } catch {
+    return null;
+  }
 });
 
 // ---- PTY ----

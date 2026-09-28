@@ -2,7 +2,7 @@
 
 A minimal macOS terminal app built for running Claude Code across multiple projects.
 
-- **Left sidebar**: your project folders. Click one to switch to its terminal.
+- **Left sidebar**: your project folders. Click one to switch to its terminal. Add projects by dragging a folder from Finder onto the sidebar, or with the + button.
 - **Right**: a real terminal (zsh login shell) opened in that project's folder. Each project keeps its own shell alive while you switch between them.
 - **Launch Claude** button runs `claude` in the active project.
 
@@ -36,6 +36,7 @@ The app icon is drawn in `build/icon.svg`; `build/icon.icns` is generated from i
 ```sh
 CT_DEBUG=1 npm start                          # forwards renderer console + pty events to stdout
 CT_DEBUG=1 CT_SCREENSHOT=/tmp/shot.png npm start   # also saves a screenshot 2.5s after load
+CT_DEBUG=1 CT_EVAL="projects.length" npm start     # runs JS in the renderer after load and logs the result
 ```
 
 Projects are stored in `~/Library/Application Support/Claude Terminal/projects.json` (installed app) or `.../claude-terminal/projects.json` when run with `npm start`.

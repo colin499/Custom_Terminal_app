@@ -51,14 +51,37 @@ function renderProjects() {
 
 async function addProject() {
   const folder = await window.api.pickFolder();
-  if (!folder) return;
+  if (folder) await addProjectPath(folder);
+}
+
+async function addProjectPath(folder) {
   const existing = projects.find((p) => p.path === folder);
   if (existing) { activate(existing.id); return; }
-  const project = { id: `p_${Date.now()}`, name: folder.split('/').filter(Boolean).pop() || folder, path: folder };
+  const project = { id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, name: folder.split('/').filter(Boolean).pop() || folder, path: folder };
   projects.push(project);
   await window.api.saveProjects(projects);
   activate(project.id);
 }
+
+// Drag a folder from Finder onto the sidebar to add it as a project.
+const $sidebar = document.getElementById('sidebar');
+let dragDepth = 0;
+$sidebar.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; $sidebar.classList.add('drop-target'); });
+$sidebar.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+$sidebar.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $sidebar.classList.remove('drop-target'); } });
+$sidebar.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  $sidebar.classList.remove('drop-target');
+  for (const file of Array.from(e.dataTransfer.files)) {
+    const raw = window.api.pathForFile(file);
+    const folder = raw && await window.api.resolveFolder(raw);
+    if (folder) await addProjectPath(folder);
+  }
+});
+// Dropping anywhere else should not navigate the window away.
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => e.preventDefault());
 
 async function removeProject(id) {
   const s = sessions.get(id);
