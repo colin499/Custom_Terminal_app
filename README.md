@@ -22,7 +22,7 @@ npm run install-app
 This packages the app with its icon and copies it to `/Applications/Claude Terminal.app`.
 Spotlight picks it up automatically. Re-run after making changes to update the installed copy.
 
-The app icon is drawn in `build/icon.svg`; `build/icon.icns` is generated from it.
+The app icon is a square crop of Philip Guston's *Painting, Smoking, Eating* (1973), stored as `build/icon-source.jpg`. `build/icon.svg` masks it into the macOS rounded tile, and `build/icon.icns` is rendered from that.
 
 ## Design
 
