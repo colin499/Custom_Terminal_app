@@ -7,7 +7,8 @@
     "start": "electron .",
     "postinstall": "electron-rebuild -f -w node-pty",
     "build": "electron-packager . \"Claude Terminal\" --platform=darwin --arch=arm64 --out=dist --overwrite --icon=build/icon.icns --app-bundle-id=com.cwandt.claude-terminal --ignore=\"^/dist\" --ignore=\"^/build/icon.svg\" --prune=true --asar.unpackDir=\"node_modules/node-pty\"",
-    "install-app": "npm run build && rm -rf \"/Applications/Claude Terminal.app\" && cp -R \"dist/Claude Terminal-darwin-arm64/Claude Terminal.app\" /Applications/ && rm -rf dist && echo \"Installed to /Applications/Claude Terminal.app\""
+    "install-app": "npm run build && rm -rf \"/Applications/Claude Terminal.app\" && cp -R \"dist/Claude Terminal-darwin-arm64/Claude Terminal.app\" /Applications/ && rm -rf dist && echo \"Installed to /Applications/Claude Terminal.app\"",
+    "icon": "electron build/make-icon.js"
   },
   "license": "MIT",
   "dependencies": {
