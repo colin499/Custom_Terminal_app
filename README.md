@@ -2,7 +2,7 @@
 
 A minimal macOS terminal app built for running Claude Code across multiple projects.
 
-- **Left sidebar**: your project folders. Click one to switch to its terminal. Add projects by dragging a folder from Finder onto the sidebar, or with the + button.
+- **Left sidebar**: your project folders. Click one to switch to its terminal. Add projects by dragging a folder from Finder onto the sidebar, or with the + button. Drag rows up and down to reorder them.
 - **Right**: a real terminal (zsh login shell) opened in that project's folder. Each project keeps its own shell alive while you switch between them.
 - **Launch Claude** button runs `claude` in the active project.
 

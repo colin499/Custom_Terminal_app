@@ -48,10 +48,83 @@ function renderProjects() {
     li.querySelector('.path').title = p.path;
     li.addEventListener('click', () => activate(p.id));
     li.querySelector('.remove').addEventListener('click', (e) => { e.stopPropagation(); removeProject(p.id); });
+    wireRowDrag(li, p.id);
     $list.appendChild(li);
   }
   $launch.disabled = !activeId;
 }
+
+// ---------- Reordering rows by drag ----------
+const ROW_MIME = 'application/x-monk-project';
+let draggingId = null;
+
+function clearDropMarkers() {
+  for (const el of $list.querySelectorAll('.drop-before, .drop-after')) el.classList.remove('drop-before', 'drop-after');
+}
+
+function isRowDrag(e) {
+  return draggingId !== null || Array.from(e.dataTransfer?.types || []).includes(ROW_MIME);
+}
+
+async function moveProject(id, toIndex) {
+  const from = projects.findIndex((p) => p.id === id);
+  if (from < 0) return;
+  const [item] = projects.splice(from, 1);
+  if (toIndex > from) toIndex--;
+  projects.splice(Math.max(0, Math.min(toIndex, projects.length)), 0, item);
+  await window.api.saveProjects(projects);
+  renderProjects();
+}
+
+function wireRowDrag(li, id) {
+  li.draggable = true;
+  li.addEventListener('dragstart', (e) => {
+    draggingId = id;
+    e.dataTransfer.setData(ROW_MIME, id);
+    e.dataTransfer.effectAllowed = 'move';
+    requestAnimationFrame(() => li.classList.add('dragging'));
+  });
+  li.addEventListener('dragend', () => {
+    draggingId = null;
+    li.classList.remove('dragging');
+    clearDropMarkers();
+  });
+  li.addEventListener('dragover', (e) => {
+    if (!isRowDrag(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    const rect = li.getBoundingClientRect();
+    const after = e.clientY > rect.top + rect.height / 2;
+    clearDropMarkers();
+    li.classList.add(after ? 'drop-after' : 'drop-before');
+  });
+  li.addEventListener('drop', (e) => {
+    if (!isRowDrag(e)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const after = li.classList.contains('drop-after');
+    clearDropMarkers();
+    const target = projects.findIndex((p) => p.id === id);
+    moveProject(draggingId || e.dataTransfer.getData(ROW_MIME), after ? target + 1 : target);
+  });
+}
+
+// Dropping a row on the empty space below the list moves it to the end.
+$list.addEventListener('dragover', (e) => {
+  if (!isRowDrag(e) || e.target !== $list) return;
+  e.preventDefault();
+  e.stopPropagation();
+  clearDropMarkers();
+  $list.lastElementChild?.classList.add('drop-after');
+});
+$list.addEventListener('drop', (e) => {
+  if (!isRowDrag(e) || e.target !== $list) return;
+  e.preventDefault();
+  e.stopPropagation();
+  clearDropMarkers();
+  moveProject(draggingId || e.dataTransfer.getData(ROW_MIME), projects.length);
+});
 
 async function addProject() {
   const folder = await window.api.pickFolder();
@@ -70,10 +143,11 @@ async function addProjectPath(folder) {
 // Drag a folder from Finder onto the sidebar to add it as a project.
 const $sidebar = document.getElementById('sidebar');
 let dragDepth = 0;
-$sidebar.addEventListener('dragenter', (e) => { e.preventDefault(); dragDepth++; $sidebar.classList.add('drop-target'); });
-$sidebar.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
-$sidebar.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; $sidebar.classList.remove('drop-target'); } });
+$sidebar.addEventListener('dragenter', (e) => { if (isRowDrag(e)) return; e.preventDefault(); dragDepth++; $sidebar.classList.add('drop-target'); });
+$sidebar.addEventListener('dragover', (e) => { if (isRowDrag(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+$sidebar.addEventListener('dragleave', (e) => { if (isRowDrag(e)) return; if (--dragDepth <= 0) { dragDepth = 0; $sidebar.classList.remove('drop-target'); } });
 $sidebar.addEventListener('drop', async (e) => {
+  if (isRowDrag(e)) return;
   e.preventDefault();
   dragDepth = 0;
   $sidebar.classList.remove('drop-target');
