@@ -4,11 +4,11 @@
 @font-face { font-family: "Space Mono"; src: url("fonts/SpaceMono-BoldItalic.ttf"); font-weight: 700; font-style: italic; }
 
 :root {
-  --bg: #ffffff;
-  --fg: #000000;
-  --muted: #888888;
-  --line: #000000;
-  --hover: #f2f2f2;
+  --bg: #f3ede3;      /* warm paper */
+  --fg: #141210;      /* near-black, slightly warm */
+  --muted: #8c8378;   /* warm gray */
+  --line: #141210;
+  --hover: #e8e0d3;
   --titlebar-h: 38px;
   --sidebar-w: 260px;
 }

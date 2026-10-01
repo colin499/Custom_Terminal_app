@@ -5,16 +5,16 @@ const FitAddonCtor = window.FitAddon.FitAddon;
 const WebLinksAddonCtor = window.WebLinksAddon.WebLinksAddon;
 
 const THEME = {
-  background: '#ffffff',
-  foreground: '#000000',
-  cursor: '#000000',
-  cursorAccent: '#ffffff',
-  selectionBackground: '#000000',
-  selectionForeground: '#ffffff',
-  black: '#000000', red: '#000000', green: '#000000', yellow: '#000000',
-  blue: '#000000', magenta: '#000000', cyan: '#000000', white: '#888888',
-  brightBlack: '#888888', brightRed: '#000000', brightGreen: '#000000', brightYellow: '#000000',
-  brightBlue: '#000000', brightMagenta: '#000000', brightCyan: '#000000', brightWhite: '#000000',
+  background: '#f3ede3',
+  foreground: '#141210',
+  cursor: '#141210',
+  cursorAccent: '#f3ede3',
+  selectionBackground: '#141210',
+  selectionForeground: '#f3ede3',
+  black: '#141210', red: '#141210', green: '#141210', yellow: '#141210',
+  blue: '#141210', magenta: '#141210', cyan: '#141210', white: '#8c8378',
+  brightBlack: '#8c8378', brightRed: '#141210', brightGreen: '#141210', brightYellow: '#141210',
+  brightBlue: '#141210', brightMagenta: '#141210', brightCyan: '#141210', brightWhite: '#141210',
 };
 
 let projects = [];           // [{ id, name, path }]

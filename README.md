@@ -26,7 +26,7 @@ The app icon is a square crop of Philip Guston's *Painting, Smoking, Eating* (19
 
 ## Design
 
-Monochrome, Space Mono, straight 1px rules, no rounded corners. All colors and sizes are CSS variables at the top of `src/renderer/style.css`; the terminal palette is `THEME` in `src/renderer/renderer.js`. Space Mono is bundled in `src/renderer/fonts/` under the SIL Open Font License.
+Warm paper background, near-black text, Space Mono, straight 1px rules, no rounded corners. All colors and sizes are CSS variables at the top of `src/renderer/style.css`; the terminal palette is `THEME` in `src/renderer/renderer.js`. Space Mono is bundled in `src/renderer/fonts/` under the SIL Open Font License.
 
 ## Shortcuts
 
