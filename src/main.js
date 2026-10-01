@@ -10,7 +10,7 @@ let win = null;
 const ptys = new Map(); // projectId -> pty process
 
 // Earlier builds stored projects under these app names. Merge them in once.
-const LEGACY_NAMES = ['Claude Terminal', 'claude-terminal'];
+const LEGACY_NAMES = ['Your Terminal', 'Claude Terminal', 'claude-terminal'];
 
 function readJson(file) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
@@ -40,7 +40,7 @@ function createWindow() {
     minWidth: 700,
     minHeight: 400,
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#f3ede3',
+    backgroundColor: '#e9dcc3',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

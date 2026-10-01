@@ -5,12 +5,12 @@ const FitAddonCtor = window.FitAddon.FitAddon;
 const WebLinksAddonCtor = window.WebLinksAddon.WebLinksAddon;
 
 const THEME = {
-  background: '#f3ede3',
+  background: '#e9dcc3',
   foreground: '#141210',
   cursor: '#141210',
-  cursorAccent: '#f3ede3',
+  cursorAccent: '#e9dcc3',
   selectionBackground: '#141210',
-  selectionForeground: '#f3ede3',
+  selectionForeground: '#e9dcc3',
   black: '#141210', red: '#141210', green: '#141210', yellow: '#141210',
   blue: '#141210', magenta: '#141210', cyan: '#141210', white: '#8c8378',
   brightBlack: '#8c8378', brightRed: '#141210', brightGreen: '#141210', brightYellow: '#141210',
