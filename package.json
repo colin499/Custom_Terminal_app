@@ -1,13 +1,13 @@
 {
-  "name": "claude-terminal",
+  "name": "your-terminal",
   "version": "0.1.0",
   "description": "A custom terminal app for running Claude Code across projects",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "postinstall": "electron-rebuild -f -w node-pty",
-    "build": "electron-packager . \"Claude Terminal\" --platform=darwin --arch=arm64 --out=dist --overwrite --icon=build/icon.icns --app-bundle-id=com.cwandt.claude-terminal --ignore=\"^/dist\" --ignore=\"^/build/icon.svg\" --prune=true --asar.unpackDir=\"node_modules/node-pty\"",
-    "install-app": "npm run build && rm -rf \"/Applications/Claude Terminal.app\" && cp -R \"dist/Claude Terminal-darwin-arm64/Claude Terminal.app\" /Applications/ && rm -rf dist && echo \"Installed to /Applications/Claude Terminal.app\"",
+    "build": "electron-packager . \"Your Terminal\" --platform=darwin --arch=arm64 --out=dist --overwrite --icon=build/icon.icns --app-bundle-id=com.cwandt.your-terminal --ignore=\"^/dist\" --ignore=\"^/build/icon.svg\" --prune=true --asar.unpackDir=\"node_modules/node-pty\"",
+    "install-app": "npm run build && rm -rf \"/Applications/Your Terminal.app\" && cp -R \"dist/Your Terminal-darwin-arm64/Your Terminal.app\" /Applications/ && rm -rf dist && echo \"Installed to /Applications/Your Terminal.app\"",
     "icon": "electron build/make-icon.js"
   },
   "license": "MIT",
@@ -22,5 +22,5 @@
     "@electron/rebuild": "^4.2.0",
     "electron": "^44.4.5"
   },
-  "productName": "Claude Terminal"
+  "productName": "Your Terminal"
 }

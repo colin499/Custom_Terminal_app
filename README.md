@@ -1,4 +1,4 @@
-# Claude Terminal
+# Your Terminal
 
 A minimal macOS terminal app built for running Claude Code across multiple projects.
 
@@ -19,7 +19,7 @@ npm start
 npm run install-app
 ```
 
-This packages the app with its icon and copies it to `/Applications/Claude Terminal.app`.
+This packages the app with its icon and copies it to `/Applications/Your Terminal.app`.
 Spotlight picks it up automatically. Re-run after making changes to update the installed copy.
 
 The app icon is a square crop of Philip Guston's *Painting, Smoking, Eating* (1973), stored as `build/icon-source.jpg`. `build/icon.svg` masks it into the macOS rounded tile, and `npm run icon` renders `build/icon.icns` from that with a transparent background.
@@ -43,7 +43,7 @@ CT_DEBUG=1 CT_SCREENSHOT=/tmp/shot.png npm start   # also saves a screenshot 2.5
 CT_DEBUG=1 CT_EVAL="projects.length" npm start     # runs JS in the renderer after load and logs the result
 ```
 
-Projects are stored in `~/Library/Application Support/Claude Terminal/projects.json` (installed app) or `.../claude-terminal/projects.json` when run with `npm start`.
+Projects are stored in `~/Library/Application Support/Your Terminal/projects.json`. On first launch, lists from earlier app names (`Claude Terminal`, `claude-terminal`) are merged in.
 
 ## Layout
 

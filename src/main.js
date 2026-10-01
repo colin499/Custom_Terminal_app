@@ -9,12 +9,23 @@ const PROJECTS_FILE = () => path.join(app.getPath('userData'), 'projects.json');
 let win = null;
 const ptys = new Map(); // projectId -> pty process
 
+// Earlier builds stored projects under these app names. Merge them in once.
+const LEGACY_NAMES = ['Claude Terminal', 'claude-terminal'];
+
+function readJson(file) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; }
+}
+
 function loadProjects() {
-  try {
-    return JSON.parse(fs.readFileSync(PROJECTS_FILE(), 'utf8'));
-  } catch {
-    return [];
+  const current = readJson(PROJECTS_FILE());
+  if (current) return current;
+  const merged = [];
+  for (const name of LEGACY_NAMES) {
+    const list = readJson(path.join(path.dirname(app.getPath('userData')), name, 'projects.json')) || [];
+    for (const p of list) if (!merged.some((m) => m.path === p.path)) merged.push(p);
   }
+  if (merged.length) saveProjects(merged);
+  return merged;
 }
 
 function saveProjects(projects) {
