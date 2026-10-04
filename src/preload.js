@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
   pickFolder: () => ipcRenderer.invoke('projects:pickFolder'),
   pathForFile: (file) => webUtils.getPathForFile(file),
   resolveFolder: (p) => ipcRenderer.invoke('projects:resolveFolder', p),
+  prepareDrop: (p) => ipcRenderer.invoke('drop:prepare', p),
 
   ptyCreate: (opts) => ipcRenderer.invoke('pty:create', opts),
   ptyWrite: (id, data) => ipcRenderer.send('pty:write', { id, data }),

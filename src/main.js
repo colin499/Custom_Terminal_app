@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const pty = require('node-pty');
+const { execFile } = require('child_process');
 
 const PROJECTS_FILE = () => path.join(app.getPath('userData'), 'projects.json');
 
@@ -89,6 +90,21 @@ ipcMain.handle('projects:resolveFolder', (_e, p) => {
     return null;
   }
 });
+
+// Files dropped on the terminal: return the path to paste. Formats Claude Code can't read
+// as images (HEIC/HEIF) are converted to JPEG in the app's data folder first.
+ipcMain.handle('drop:prepare', (_e, file) => new Promise((resolve) => {
+  const ext = path.extname(file).toLowerCase();
+  if (ext !== '.heic' && ext !== '.heif') return resolve(file);
+  const outDir = path.join(app.getPath('userData'), 'converted');
+  fs.mkdirSync(outDir, { recursive: true });
+  const out = path.join(outDir, path.basename(file, ext) + '.jpg');
+  execFile('sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '90', file, '--out', out], (err) => {
+    // sips can exit 0 and only print a warning, so check the output really exists.
+    if (err || !fs.existsSync(out)) { console.error('[main] HEIC conversion failed:', err ? err.message : 'no output'); return resolve(file); }
+    resolve(out);
+  });
+}));
 
 // ---- PTY ----
 ipcMain.handle('pty:create', (_e, { id, cwd, cols, rows }) => {

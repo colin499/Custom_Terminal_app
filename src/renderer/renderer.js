@@ -157,6 +157,28 @@ $sidebar.addEventListener('drop', async (e) => {
     if (folder) await addProjectPath(folder);
   }
 });
+// Dropping files on the terminal pastes their paths, like Terminal.app.
+function shellQuote(p) { return "'" + p.replace(/'/g, "'\\''") + "'"; }
+$terminals.addEventListener('dragover', (e) => {
+  if (isRowDrag(e)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'link';
+});
+$terminals.addEventListener('drop', async (e) => {
+  if (isRowDrag(e)) return;
+  e.preventDefault();
+  const s = sessions.get(activeId);
+  if (!s || !s.running) return;
+  const paths = [];
+  for (const file of Array.from(e.dataTransfer.files)) {
+    const raw = window.api.pathForFile(file);
+    if (raw) paths.push(await window.api.prepareDrop(raw));
+  }
+  if (!paths.length) return;
+  window.api.ptyWrite(activeId, paths.map(shellQuote).join(' ') + ' ');
+  s.term.focus();
+});
+
 // Dropping anywhere else should not navigate the window away.
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
