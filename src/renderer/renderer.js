@@ -305,10 +305,10 @@ function setBar(fillId, textId, pct, text, title) {
 
 function resetsIn(epochSeconds) {
   const ms = epochSeconds * 1000 - Date.now();
-  if (ms <= 0) return 'resets now';
+  if (ms <= 0) return 'now';
   const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
-  if (h >= 48) return `resets in ${Math.round(h / 24)}d`;
-  return h ? `resets in ${h}h ${m}m` : `resets in ${m}m`;
+  if (h >= 48) return `${Math.round(h / 24)}d`;
+  return h ? `${h}h${String(m).padStart(2, '0')}` : `${m}m`;
 }
 
 async function refreshModel() {
@@ -328,17 +328,17 @@ async function refreshModel() {
   const c = info.context;
   if (c) {
     const pct = c.pct ?? (100 * c.used / c.window);
-    setBar('ctx-fill', 'ctx-text', pct, `${Math.round(pct)}%  ${fmtK(c.used)} / ${fmtK(c.window)}`);
+    setBar('ctx-fill', 'ctx-text', pct, `${Math.round(pct)}% ${fmtK(c.used)}/${fmtK(c.window)}`);
   } else setBar('ctx-fill', 'ctx-text', null, '—', 'No Claude session for this project yet');
 
   const r = info.rate;
   const noStatus = info.statusLineOk ? 'Appears after the next Claude reply' : 'Needs the Monk status line in Claude settings';
-  if (r && r.five) setBar('five-fill', 'five-text', r.five.used_percentage, `${Math.round(r.five.used_percentage)}%  ${resetsIn(r.five.resets_at)}`);
+  if (r && r.five) setBar('five-fill', 'five-text', r.five.used_percentage, `${Math.round(r.five.used_percentage)}% ↻${resetsIn(r.five.resets_at)}`, `Resets ${new Date(r.five.resets_at * 1000).toLocaleString()}`);
   else setBar('five-fill', 'five-text', null, '—', noStatus);
-  if (r && r.seven) setBar('seven-fill', 'seven-text', r.seven.used_percentage, `${Math.round(r.seven.used_percentage)}%  ${resetsIn(r.seven.resets_at)}`);
+  if (r && r.seven) setBar('seven-fill', 'seven-text', r.seven.used_percentage, `${Math.round(r.seven.used_percentage)}% ↻${resetsIn(r.seven.resets_at)}`, `Resets ${new Date(r.seven.resets_at * 1000).toLocaleString()}`);
   else setBar('seven-fill', 'seven-text', null, '—', noStatus);
 
-  document.getElementById('totals-text').textContent = info.totals ? `IN ${fmtK(info.totals.input)}  OUT ${fmtK(info.totals.output)}` : '—';
+  document.getElementById('totals-text').textContent = info.totals ? `IN ${fmtK(info.totals.input)} OUT ${fmtK(info.totals.output)}` : '—';
 }
 setInterval(refreshModel, 3000);
 

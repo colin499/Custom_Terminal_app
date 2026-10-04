@@ -210,22 +210,26 @@ button {
   border-bottom: 1px solid var(--line);
   font-size: 10px;
   letter-spacing: 0.05em;
+  overflow: hidden;
 }
 #statsbar.hidden { display: none; }
 #statsbar .stat {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px;
+  gap: 8px;
+  padding: 0 12px;
   border-right: 1px solid var(--line);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-#statsbar .stat:last-child { border-right: none; }
-#statsbar .label { text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); }
+#statsbar .stat:last-child { border-right: none; flex-shrink: 1; min-width: 0; overflow: hidden; }
+#statsbar .label { text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); white-space: nowrap; }
 #statsbar .bar {
   display: block;
-  width: 120px;
+  width: 72px;
   height: 8px;
   border: 1px solid var(--fg);
+  flex-shrink: 0;
 }
 #statsbar .fill { display: block; height: 100%; width: 0; background: var(--fg); }
 #statsbar .fill.warn { background: repeating-linear-gradient(90deg, var(--fg) 0 2px, transparent 2px 4px); }
