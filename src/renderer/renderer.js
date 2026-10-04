@@ -204,6 +204,19 @@ async function removeProject(id) {
 }
 
 // ---------- Terminal sessions ----------
+// Fit the terminal to its container, then make sure the rendered screen really fits:
+// if the last row would be clipped, drop rows until it isn't.
+function fitSession(s) {
+  if (!s || !s.container.classList.contains('visible')) return;
+  s.fit.fit();
+  const screen = s.container.querySelector('.xterm-screen');
+  if (!screen) return;
+  for (let i = 0; i < 3; i++) {
+    const overflow = screen.getBoundingClientRect().bottom - s.container.getBoundingClientRect().bottom;
+    if (overflow <= 0 || s.term.rows <= 2) break;
+    s.term.resize(s.term.cols, s.term.rows - 1);
+  }
+}
 function ensureSession(project) {
   if (sessions.has(project.id)) return sessions.get(project.id);
 
@@ -235,7 +248,7 @@ function ensureSession(project) {
 
   // Spawn shell after first fit so the pty gets the right size.
   container.classList.add('visible');
-  fit.fit();
+  fitSession(session);
   window.api.ptyCreate({ id: project.id, cwd: project.path, cols: term.cols, rows: term.rows }).then((result) => {
     if (result && result.error) {
       term.write(`\x1b[31mFailed to start shell: ${result.error}\x1b[0m\r\n`);
@@ -257,7 +270,7 @@ function activate(id) {
   session.container.classList.add('visible');
   updateMain();
   renderProjects();
-  requestAnimationFrame(() => { session.fit.fit(); session.term.focus(); });
+  requestAnimationFrame(() => { fitSession(session); session.term.focus(); });
 }
 
 function updateMain() {
@@ -341,10 +354,7 @@ function restartSession(id) {
 }
 
 // ---------- Resize ----------
-const ro = new ResizeObserver(() => {
-  const s = sessions.get(activeId);
-  if (s && s.container.classList.contains('visible')) s.fit.fit();
-});
+const ro = new ResizeObserver(() => fitSession(sessions.get(activeId)));
 ro.observe($terminals);
 
 // ---------- UI wiring ----------

@@ -255,8 +255,9 @@ button {
 .term-container {
   position: absolute;
   inset: 0;
-  padding: 12px 0 12px 16px;
   display: none;
 }
 .term-container.visible { display: block; }
-.term-container .xterm { height: 100%; }
+/* Padding lives on .xterm itself: the fit addon subtracts the terminal element's padding
+   (not its parent's) when computing how many rows fit. */
+.term-container .xterm { height: 100%; padding: 12px 0 12px 16px; }
