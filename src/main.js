@@ -106,6 +106,47 @@ ipcMain.handle('drop:prepare', (_e, file) => new Promise((resolve) => {
   });
 }));
 
+// ---- Claude Code status line integration ----
+// Claude Code can pipe a JSON status payload (model, context window, usage limits) to a
+// command after every reply. Monk installs a script that saves that payload per project.
+const MONK_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'Monk');
+const STATUS_DIR = path.join(MONK_DIR, 'status');
+const STATUS_SCRIPT = path.join(MONK_DIR, 'statusline.sh');
+const CLAUDE_SETTINGS = path.join(os.homedir(), '.claude', 'settings.json');
+
+function ensureStatusLine() {
+  try {
+    fs.mkdirSync(STATUS_DIR, { recursive: true });
+    const src = path.join(__dirname, '..', 'build', 'statusline.sh');
+    const body = fs.readFileSync(src, 'utf8');
+    if (!fs.existsSync(STATUS_SCRIPT) || fs.readFileSync(STATUS_SCRIPT, 'utf8') !== body) {
+      fs.writeFileSync(STATUS_SCRIPT, body, { mode: 0o755 });
+    }
+    fs.chmodSync(STATUS_SCRIPT, 0o755);
+    const settings = readJson(CLAUDE_SETTINGS) || {};
+    const current = settings.statusLine;
+    if (!current) {
+      settings.statusLine = { type: 'command', command: STATUS_SCRIPT };
+      fs.mkdirSync(path.dirname(CLAUDE_SETTINGS), { recursive: true });
+      fs.writeFileSync(CLAUDE_SETTINGS, JSON.stringify(settings, null, 2) + '\n');
+      console.log('[main] registered Monk status line in', CLAUDE_SETTINGS);
+    } else if (current.command !== STATUS_SCRIPT) {
+      console.log('[main] a different statusLine is configured; usage limits will not be available');
+    }
+  } catch (err) {
+    console.error('[main] could not set up status line:', err.message);
+  }
+}
+
+function statusPayload(cwd) {
+  const file = path.join(STATUS_DIR, encodeClaudeProjectDir(cwd) + '.json');
+  try {
+    const st = fs.statSync(file);
+    const d = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return { data: d, at: st.mtimeMs };
+  } catch { return null; }
+}
+
 // ---- Model detection ----
 // Claude Code logs each session to ~/.claude/projects/<encoded cwd>/<session>.jsonl; every
 // assistant line records the model that produced it, so the newest one is the model in use.
@@ -184,15 +225,28 @@ function scanSession(info) {
 ipcMain.handle('session:stats', (_e, cwd) => {
   const cfg = configuredModel(cwd);
   const info = newestSessionFile(cwd);
-  if (!info) return { model: cfg, source: cfg ? 'settings' : null, at: null, context: null, totals: null, budget: null };
-  const c = scanSession(info);
-  const oneM = (cfg && /\[1m\]/i.test(cfg)) || c.context > 200000;
-  return {
-    model: c.model || cfg, source: c.model ? 'session' : (cfg ? 'settings' : null), at: info.mtime,
-    context: { used: c.context, window: oneM ? 1000000 : 200000 },
-    totals: c.totals,
-    budget: c.budget.left === null ? null : c.budget,
-  };
+  const c = info ? scanSession(info) : null;
+  const status = statusPayload(cwd);
+  const out = { model: cfg, source: cfg ? 'settings' : null, at: null, context: null, rate: null, totals: c ? c.totals : null, statusLineOk: true };
+
+  if (c) {
+    const oneM = (cfg && /\[1m\]/i.test(cfg)) || c.context > 200000;
+    if (c.model) { out.model = c.model; out.source = 'session'; }
+    out.at = info.mtime;
+    if (c.context) out.context = { used: c.context, window: oneM ? 1000000 : 200000 };
+  }
+  // The status payload is authoritative when present and newer than the log.
+  if (status && (!info || status.at >= info.mtime - 5000)) {
+    const d = status.data;
+    if (d.model?.id) { out.model = d.model.id; out.source = 'status'; out.at = status.at; }
+    const cw = d.context_window;
+    if (cw && cw.context_window_size) out.context = { used: cw.total_input_tokens || 0, window: cw.context_window_size, pct: cw.used_percentage };
+    const rl = d.rate_limits;
+    if (rl) out.rate = { five: rl.five_hour || null, seven: rl.seven_day || null, spend: rl.spend_limit || null, at: status.at };
+  }
+  const configured = readJson(CLAUDE_SETTINGS)?.statusLine;
+  out.statusLineOk = !!configured && configured.command === STATUS_SCRIPT;
+  return out;
 });
 
 // ---- PTY ----
@@ -229,7 +283,7 @@ ipcMain.on('pty:resize', (_e, { id, cols, rows }) => {
 });
 ipcMain.on('pty:kill', (_e, { id }) => { const p = ptys.get(id); if (p) { p.kill(); ptys.delete(id); } });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => { ensureStatusLine(); createWindow(); });
 app.on('window-all-closed', () => {
   for (const p of ptys.values()) { try { p.kill(); } catch {} }
   ptys.clear();

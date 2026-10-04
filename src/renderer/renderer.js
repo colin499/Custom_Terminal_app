@@ -293,42 +293,52 @@ function prettyModel(id) {
 const $stats = document.getElementById('statsbar');
 const fmtK = (n) => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n);
 
+function setBar(fillId, textId, pct, text, title) {
+  const fill = document.getElementById(fillId), label = document.getElementById(textId);
+  if (pct === null || pct === undefined) { fill.style.width = '0'; fill.classList.remove('warn'); label.textContent = text || '—'; label.title = title || ''; return; }
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  fill.style.width = p + '%';
+  fill.classList.toggle('warn', p >= 80);
+  label.textContent = text;
+  label.title = title || '';
+}
+
+function resetsIn(epochSeconds) {
+  const ms = epochSeconds * 1000 - Date.now();
+  if (ms <= 0) return 'resets now';
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  if (h >= 48) return `resets in ${Math.round(h / 24)}d`;
+  return h ? `resets in ${h}h ${m}m` : `resets in ${m}m`;
+}
+
 async function refreshModel() {
   const project = projects.find((p) => p.id === activeId);
   if (!project) { $model.textContent = ''; $stats.classList.add('hidden'); return; }
+  $stats.classList.remove('hidden');
   const info = await window.api.sessionStats(project.path);
 
   if (!info.model) { $model.textContent = 'MODEL: DEFAULT'; $model.classList.add('stale'); }
   else {
     $model.textContent = prettyModel(info.model);
-    // Dim when the newest session is old or the model comes from config rather than a live session.
-    const recent = info.source === 'session' && Date.now() - info.at < 30 * 60 * 1000;
-    $model.classList.toggle('stale', !recent);
-    $model.title = info.source === 'session' ? `From the latest Claude Code session (${info.model})` : `Configured in Claude settings (${info.model})`;
+    const live = (info.source === 'status' || info.source === 'session') && Date.now() - info.at < 30 * 60 * 1000;
+    $model.classList.toggle('stale', !live);
+    $model.title = `${info.model} (from ${info.source === 'status' ? 'Claude Code status' : info.source === 'session' ? 'latest session log' : 'settings'})`;
   }
 
-  if (!info.context) { $stats.classList.add('hidden'); return; }
-  $stats.classList.remove('hidden');
-  const pct = Math.min(100, Math.round(100 * info.context.used / info.context.window));
-  const ctxFill = document.getElementById('ctx-fill');
-  ctxFill.style.width = pct + '%';
-  ctxFill.classList.toggle('warn', pct >= 80);
-  document.getElementById('ctx-text').textContent = `${pct}%  ${fmtK(info.context.used)} / ${fmtK(info.context.window)}`;
+  const c = info.context;
+  if (c) {
+    const pct = c.pct ?? (100 * c.used / c.window);
+    setBar('ctx-fill', 'ctx-text', pct, `${Math.round(pct)}%  ${fmtK(c.used)} / ${fmtK(c.window)}`);
+  } else setBar('ctx-fill', 'ctx-text', null, '—', 'No Claude session for this project yet');
 
-  const b = info.budget;
-  const bStat = document.getElementById('budget-fill').closest('.stat');
-  if (b && b.total) {
-    bStat.style.display = '';
-    const used = b.total - b.left;
-    const bpct = Math.min(100, Math.round(100 * used / b.total));
-    const bFill = document.getElementById('budget-fill');
-    bFill.style.width = bpct + '%';
-    bFill.classList.toggle('warn', bpct >= 80);
-    document.getElementById('budget-text').textContent = `${bpct}%  ${fmtK(used)} / ${fmtK(b.total)}`;
-  } else {
-    bStat.style.display = 'none';
-  }
-  document.getElementById('totals-text').textContent = `IN ${fmtK(info.totals.input)}  OUT ${fmtK(info.totals.output)}`;
+  const r = info.rate;
+  const noStatus = info.statusLineOk ? 'Appears after the next Claude reply' : 'Needs the Monk status line in Claude settings';
+  if (r && r.five) setBar('five-fill', 'five-text', r.five.used_percentage, `${Math.round(r.five.used_percentage)}%  ${resetsIn(r.five.resets_at)}`);
+  else setBar('five-fill', 'five-text', null, '—', noStatus);
+  if (r && r.seven) setBar('seven-fill', 'seven-text', r.seven.used_percentage, `${Math.round(r.seven.used_percentage)}%  ${resetsIn(r.seven.resets_at)}`);
+  else setBar('seven-fill', 'seven-text', null, '—', noStatus);
+
+  document.getElementById('totals-text').textContent = info.totals ? `IN ${fmtK(info.totals.input)}  OUT ${fmtK(info.totals.output)}` : '—';
 }
 setInterval(refreshModel, 3000);
 

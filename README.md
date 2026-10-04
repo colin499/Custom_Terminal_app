@@ -9,13 +9,18 @@ A minimal macOS terminal app built for running Claude Code across multiple proje
 
 ## Model and usage display
 
-The title bar shows the model of the newest Claude Code session for the active project (dimmed when that session is more than 30 minutes old or the model is only known from settings). Below it, a stats bar shows:
+The title bar shows the current model. The stats bar under it shows:
 
-- **Context**: tokens in the last reply's context versus the window (1M for `[1m]` models, else 200K). Hatched at 80%+.
-- **Budget**: Claude Code's per-session token budget, from its `total_tokens` reminders.
-- **Session**: cumulative input and output tokens across the session.
+- **Context**: how full the context window is.
+- **5 hour** and **7 day**: your Claude subscription usage limits, with reset times.
+- **Session**: cumulative input and output tokens from the session log.
 
-All of this is read from `~/.claude/projects/<project>/<session>.jsonl`, scanned incrementally every 3 seconds.
+Context and usage come from Claude Code's status line feature. On first launch Monk writes
+`~/Library/Application Support/Monk/statusline.sh` and, if no status line is configured, registers it
+in `~/.claude/settings.json`. Claude Code then pipes its status payload to that script after every
+reply; the script saves it under `~/Library/Application Support/Monk/status/` per project and prints a
+short status line inside Claude Code. If you already use a different status line, Monk leaves it alone
+and the usage cells stay empty. The cells show a dash until Claude has replied at least once.
 
 ## Run
 
