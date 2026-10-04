@@ -7,6 +7,16 @@ A minimal macOS terminal app built for running Claude Code across multiple proje
 - **Launch Claude** button runs `claude` in the active project.
 - **Drop a file on the terminal** to paste its path, quoted for the shell. HEIC images are converted to JPEG first (Claude Code can't read HEIC); the copies live in `~/Library/Application Support/Monk/converted/`.
 
+## Model and usage display
+
+The title bar shows the model of the newest Claude Code session for the active project (dimmed when that session is more than 30 minutes old or the model is only known from settings). Below it, a stats bar shows:
+
+- **Context**: tokens in the last reply's context versus the window (1M for `[1m]` models, else 200K). Hatched at 80%+.
+- **Budget**: Claude Code's per-session token budget, from its `total_tokens` reminders.
+- **Session**: cumulative input and output tokens across the session.
+
+All of this is read from `~/.claude/projects/<project>/<session>.jsonl`, scanned incrementally every 3 seconds.
+
 ## Run
 
 ```sh

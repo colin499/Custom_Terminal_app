@@ -186,11 +186,50 @@ button {
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
-  padding-left: 16px;
+  justify-content: space-between;
+  padding: 0 16px;
   font-size: 10px;
   letter-spacing: 0.05em;
   color: var(--muted);
 }
+#title-path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#title-model {
+  flex-shrink: 0;
+  margin-left: 16px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+#title-model.stale { color: var(--muted); }
+
+#statsbar {
+  display: flex;
+  align-items: stretch;
+  height: 28px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+#statsbar.hidden { display: none; }
+#statsbar .stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-right: 1px solid var(--line);
+}
+#statsbar .stat:last-child { border-right: none; }
+#statsbar .label { text-transform: uppercase; letter-spacing: 0.18em; color: var(--muted); }
+#statsbar .bar {
+  display: block;
+  width: 120px;
+  height: 8px;
+  border: 1px solid var(--fg);
+}
+#statsbar .fill { display: block; height: 100%; width: 0; background: var(--fg); }
+#statsbar .fill.warn { background: repeating-linear-gradient(90deg, var(--fg) 0 2px, transparent 2px 4px); }
+#statsbar .value { color: var(--fg); white-space: nowrap; }
 
 #empty-state {
   flex: 1;

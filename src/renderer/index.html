@@ -21,7 +21,12 @@
       </div>
     </aside>
     <main id="main">
-      <div id="titlebar-drag"></div>
+      <div id="titlebar-drag"><span id="title-path"></span><span id="title-model"></span></div>
+      <div id="statsbar" class="hidden">
+        <div class="stat"><span class="label">Context</span><span class="bar"><span id="ctx-fill" class="fill"></span></span><span id="ctx-text" class="value"></span></div>
+        <div class="stat"><span class="label">Budget</span><span class="bar"><span id="budget-fill" class="fill"></span></span><span id="budget-text" class="value"></span></div>
+        <div class="stat"><span class="label">Session</span><span id="totals-text" class="value"></span></div>
+      </div>
       <div id="empty-state">
         <h1>Monk</h1>
         <p>Drag a folder onto the sidebar or press + to add a project.</p>

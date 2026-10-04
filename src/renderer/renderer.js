@@ -24,7 +24,8 @@ const sessions = new Map();  // id -> { term, fit, container, running }
 const $list = document.getElementById('project-list');
 const $terminals = document.getElementById('terminals');
 const $empty = document.getElementById('empty-state');
-const $title = document.getElementById('titlebar-drag');
+const $title = document.getElementById('title-path');
+const $model = document.getElementById('title-model');
 const $launch = document.getElementById('launch-claude');
 
 // ---------- Projects ----------
@@ -263,7 +264,60 @@ function updateMain() {
   const project = projects.find((p) => p.id === activeId);
   $empty.classList.toggle('hidden', !!project);
   $title.textContent = project ? project.path : '';
+  refreshModel();
 }
+
+// ---------- Model label ----------
+// "claude-opus-5-5" -> "OPUS 5.5"; "claude-haiku-4-5-20251001" -> "HAIKU 4.5"; "fable[1m]" -> "FABLE [1M]"
+function prettyModel(id) {
+  if (!id) return '';
+  let s = id.replace(/^claude-/, '').replace(/-\d{8}$/, '');
+  const m = s.match(/^([a-z]+)-(\d+)-(\d+)$/i);
+  if (m) s = `${m[1]} ${m[2]}.${m[3]}`;
+  return s.toUpperCase();
+}
+
+const $stats = document.getElementById('statsbar');
+const fmtK = (n) => n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : n >= 1e3 ? Math.round(n / 1e3) + 'K' : String(n);
+
+async function refreshModel() {
+  const project = projects.find((p) => p.id === activeId);
+  if (!project) { $model.textContent = ''; $stats.classList.add('hidden'); return; }
+  const info = await window.api.sessionStats(project.path);
+
+  if (!info.model) { $model.textContent = 'MODEL: DEFAULT'; $model.classList.add('stale'); }
+  else {
+    $model.textContent = prettyModel(info.model);
+    // Dim when the newest session is old or the model comes from config rather than a live session.
+    const recent = info.source === 'session' && Date.now() - info.at < 30 * 60 * 1000;
+    $model.classList.toggle('stale', !recent);
+    $model.title = info.source === 'session' ? `From the latest Claude Code session (${info.model})` : `Configured in Claude settings (${info.model})`;
+  }
+
+  if (!info.context) { $stats.classList.add('hidden'); return; }
+  $stats.classList.remove('hidden');
+  const pct = Math.min(100, Math.round(100 * info.context.used / info.context.window));
+  const ctxFill = document.getElementById('ctx-fill');
+  ctxFill.style.width = pct + '%';
+  ctxFill.classList.toggle('warn', pct >= 80);
+  document.getElementById('ctx-text').textContent = `${pct}%  ${fmtK(info.context.used)} / ${fmtK(info.context.window)}`;
+
+  const b = info.budget;
+  const bStat = document.getElementById('budget-fill').closest('.stat');
+  if (b && b.total) {
+    bStat.style.display = '';
+    const used = b.total - b.left;
+    const bpct = Math.min(100, Math.round(100 * used / b.total));
+    const bFill = document.getElementById('budget-fill');
+    bFill.style.width = bpct + '%';
+    bFill.classList.toggle('warn', bpct >= 80);
+    document.getElementById('budget-text').textContent = `${bpct}%  ${fmtK(used)} / ${fmtK(b.total)}`;
+  } else {
+    bStat.style.display = 'none';
+  }
+  document.getElementById('totals-text').textContent = `IN ${fmtK(info.totals.input)}  OUT ${fmtK(info.totals.output)}`;
+}
+setInterval(refreshModel, 3000);
 
 // ---------- PTY events ----------
 window.api.onPtyData(({ id, data }) => { sessions.get(id)?.term.write(data); });

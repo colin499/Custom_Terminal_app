@@ -106,6 +106,95 @@ ipcMain.handle('drop:prepare', (_e, file) => new Promise((resolve) => {
   });
 }));
 
+// ---- Model detection ----
+// Claude Code logs each session to ~/.claude/projects/<encoded cwd>/<session>.jsonl; every
+// assistant line records the model that produced it, so the newest one is the model in use.
+function encodeClaudeProjectDir(cwd) { return cwd.replace(/[^A-Za-z0-9]/g, '-'); }
+
+function configuredModel(cwd) {
+  const candidates = [
+    path.join(cwd, '.claude', 'settings.local.json'),
+    path.join(cwd, '.claude', 'settings.json'),
+    path.join(os.homedir(), '.claude', 'settings.json'),
+  ];
+  for (const f of candidates) { const m = readJson(f)?.model; if (m) return m; }
+  return process.env.ANTHROPIC_MODEL || null;
+}
+
+function newestSessionFile(cwd) {
+  const dir = path.join(os.homedir(), '.claude', 'projects', encodeClaudeProjectDir(cwd));
+  let newest = null;
+  try {
+    for (const name of fs.readdirSync(dir)) {
+      if (!name.endsWith('.jsonl')) continue;
+      const file = path.join(dir, name);
+      const st = fs.statSync(file);
+      if (!newest || st.mtimeMs > newest.mtime) newest = { file, mtime: st.mtimeMs, size: st.size };
+    }
+  } catch {}
+  return newest;
+}
+
+// Incremental scan of a session log. Cached per file so each poll only reads new bytes.
+const statsCache = new Map(); // file -> { offset, partial, model, context, totals, budget }
+
+function scanSession(info) {
+  let c = statsCache.get(info.file);
+  if (!c || c.offset > info.size) {
+    c = { offset: 0, partial: '', model: null, context: 0, totals: { input: 0, output: 0 }, budget: { total: 0, left: null } };
+    statsCache.set(info.file, c);
+  }
+  if (info.size > c.offset) {
+    const fd = fs.openSync(info.file, 'r');
+    try {
+      const len = info.size - c.offset;
+      const buf = Buffer.alloc(len);
+      let got = 0;
+      while (got < len) { // readSync may return fewer bytes than asked for on large reads
+        const n = fs.readSync(fd, buf, got, len - got, c.offset + got);
+        if (n <= 0) break;
+        got += n;
+      }
+      c.offset += got;
+      const text = c.partial + buf.toString('utf8', 0, got);
+      const lines = text.split('\n');
+      c.partial = lines.pop(); // possibly incomplete last line
+      for (const line of lines) {
+        if (line.includes('"type":"assistant"')) {
+          let d; try { d = JSON.parse(line); } catch { continue; }
+          const m = d?.message; if (!m) continue;
+          if (m.model) c.model = m.model;
+          const u = m.usage;
+          if (u) {
+            const ctx = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
+            if (ctx) c.context = ctx;
+            c.totals.input += ctx;
+            c.totals.output += u.output_tokens || 0;
+          }
+        } else if (line.includes('total_tokens_reminder')) {
+          const m = line.match(/<total_tokens>(\d+) tokens left<\/total_tokens>/);
+          if (m) { const left = Number(m[1]); c.budget.left = left; c.budget.total = Math.max(c.budget.total, left); }
+        }
+      }
+    } finally { fs.closeSync(fd); }
+  }
+  return c;
+}
+
+ipcMain.handle('session:stats', (_e, cwd) => {
+  const cfg = configuredModel(cwd);
+  const info = newestSessionFile(cwd);
+  if (!info) return { model: cfg, source: cfg ? 'settings' : null, at: null, context: null, totals: null, budget: null };
+  const c = scanSession(info);
+  const oneM = (cfg && /\[1m\]/i.test(cfg)) || c.context > 200000;
+  return {
+    model: c.model || cfg, source: c.model ? 'session' : (cfg ? 'settings' : null), at: info.mtime,
+    context: { used: c.context, window: oneM ? 1000000 : 200000 },
+    totals: c.totals,
+    budget: c.budget.left === null ? null : c.budget,
+  };
+});
+
 // ---- PTY ----
 ipcMain.handle('pty:create', (_e, { id, cwd, cols, rows }) => {
   if (ptys.has(id)) return true;
