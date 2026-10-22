@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+  home: ipcRenderer.sendSync('app:home'),
   loadProjects: () => ipcRenderer.invoke('projects:load'),
   saveProjects: (projects) => ipcRenderer.invoke('projects:save', projects),
   pickFolder: () => ipcRenderer.invoke('projects:pickFolder'),

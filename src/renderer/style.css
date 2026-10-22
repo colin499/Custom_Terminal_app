@@ -133,6 +133,7 @@ button {
   text-align: left;
 }
 .project.active .path { color: var(--bg); opacity: 0.6; }
+.project.scratch .name { font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; font-size: 10px; }
 
 .project .dot {
   width: 6px;

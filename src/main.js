@@ -71,6 +71,7 @@ function createWindow() {
 }
 
 // ---- Projects ----
+ipcMain.on('app:home', (e) => { e.returnValue = os.homedir(); });
 ipcMain.handle('projects:load', () => loadProjects());
 ipcMain.handle('projects:save', (_e, projects) => { saveProjects(projects); return true; });
 ipcMain.handle('projects:pickFolder', async () => {

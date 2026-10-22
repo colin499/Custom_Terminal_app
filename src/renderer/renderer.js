@@ -21,6 +21,10 @@ let projects = [];           // [{ id, name, path }]
 let activeId = null;
 const sessions = new Map();  // id -> { term, fit, container, running }
 
+// A fixed row for working outside any project: a shell (and Claude) in the home folder.
+const SCRATCH = { id: 'scratch', name: 'Scratch', path: window.api.home };
+function findProject(id) { return id === SCRATCH.id ? SCRATCH : projects.find((p) => p.id === id); }
+
 const $list = document.getElementById('project-list');
 const $terminals = document.getElementById('terminals');
 const $empty = document.getElementById('empty-state');
@@ -31,9 +35,10 @@ const $launch = document.getElementById('launch-claude');
 // ---------- Projects ----------
 function renderProjects() {
   $list.innerHTML = '';
-  for (const p of projects) {
+  for (const p of [SCRATCH, ...projects]) {
+    const scratch = p === SCRATCH;
     const li = document.createElement('li');
-    li.className = 'project' + (p.id === activeId ? ' active' : '') + (sessions.get(p.id)?.running ? ' running' : '');
+    li.className = 'project' + (scratch ? ' scratch' : '') + (p.id === activeId ? ' active' : '') + (sessions.get(p.id)?.running ? ' running' : '');
     li.dataset.id = p.id;
     li.innerHTML = `
       <span class="index"></span>
@@ -43,13 +48,16 @@ function renderProjects() {
       </div>
       <span class="dot" title="Shell running"></span>
       <button class="remove" title="Remove from list">×</button>`;
-    li.querySelector('.index').textContent = String(projects.indexOf(p) + 1).padStart(2, '0');
+    li.querySelector('.index').textContent = scratch ? '~' : String(projects.indexOf(p) + 1).padStart(2, '0');
     li.querySelector('.name').textContent = p.name;
-    li.querySelector('.path').textContent = p.path;
+    li.querySelector('.path').textContent = scratch ? 'No project · home folder' : p.path;
     li.querySelector('.path').title = p.path;
     li.addEventListener('click', () => activate(p.id));
-    li.querySelector('.remove').addEventListener('click', (e) => { e.stopPropagation(); removeProject(p.id); });
-    wireRowDrag(li, p.id);
+    if (scratch) li.querySelector('.remove').remove();
+    else {
+      li.querySelector('.remove').addEventListener('click', (e) => { e.stopPropagation(); removeProject(p.id); });
+      wireRowDrag(li, p.id);
+    }
     $list.appendChild(li);
   }
   $launch.disabled = !activeId;
@@ -200,7 +208,7 @@ async function removeProject(id) {
   await window.api.saveProjects(projects);
   if (activeId === id) {
     activeId = null;
-    if (projects.length) activate(projects[0].id); else renderProjects();
+    activate(projects.length ? projects[0].id : SCRATCH.id);
   } else {
     renderProjects();
   }
@@ -266,7 +274,7 @@ function ensureSession(project) {
 }
 
 function activate(id) {
-  const project = projects.find((p) => p.id === id);
+  const project = findProject(id);
   if (!project) return;
   activeId = id;
   for (const s of sessions.values()) s.container.classList.remove('visible');
@@ -278,7 +286,7 @@ function activate(id) {
 }
 
 function updateMain() {
-  const project = projects.find((p) => p.id === activeId);
+  const project = findProject(activeId);
   $empty.classList.toggle('hidden', !!project);
   $title.textContent = project ? project.path : '';
   refreshModel();
@@ -316,7 +324,7 @@ function resetsIn(epochSeconds) {
 }
 
 async function refreshModel() {
-  const project = projects.find((p) => p.id === activeId);
+  const project = findProject(activeId);
   if (!project) { $model.textContent = ''; $stats.classList.add('hidden'); return; }
   $stats.classList.remove('hidden');
   const info = await window.api.sessionStats(project.path);
@@ -380,10 +388,11 @@ $launch.addEventListener('click', () => {
   s.term.focus();
 });
 
-// Cmd+1..9 switches projects, Cmd+N adds one.
+// Cmd+1..9 switches projects, Cmd+0 is the scratch row, Cmd+N adds a project.
 window.addEventListener('keydown', (e) => {
   if (!e.metaKey) return;
   if (e.key === 'n') { e.preventDefault(); addProject(); }
+  if (e.key === '0') { e.preventDefault(); activate(SCRATCH.id); }
   const n = parseInt(e.key, 10);
   if (n >= 1 && n <= 9 && projects[n - 1]) { e.preventDefault(); activate(projects[n - 1].id); }
 });
@@ -396,7 +405,5 @@ window.addEventListener('keydown', (e) => {
     document.fonts.load('700 12px "Space Mono"'),
   ]).catch(() => {});
   projects = await window.api.loadProjects();
-  renderProjects();
-  updateMain();
-  if (projects.length) activate(projects[0].id);
+  activate(projects.length ? projects[0].id : SCRATCH.id);
 })();
