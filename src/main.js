@@ -112,6 +112,10 @@ ipcMain.handle('drop:prepare', (_e, file) => new Promise((resolve) => {
 const MONK_DIR = path.join(os.homedir(), 'Library', 'Application Support', 'Monk');
 const STATUS_DIR = path.join(MONK_DIR, 'status');
 const STATUS_SCRIPT = path.join(MONK_DIR, 'statusline.sh');
+// Claude Code runs the command through a shell, and the path has a space in it, so the
+// registered command is the quoted path. (Earlier builds registered it unquoted and the
+// shell looked for "/Users/.../Library/Application", so no status was ever saved.)
+const STATUS_CMD = `"${STATUS_SCRIPT}"`;
 const CLAUDE_SETTINGS = path.join(os.homedir(), '.claude', 'settings.json');
 
 function ensureStatusLine() {
@@ -125,12 +129,12 @@ function ensureStatusLine() {
     fs.chmodSync(STATUS_SCRIPT, 0o755);
     const settings = readJson(CLAUDE_SETTINGS) || {};
     const current = settings.statusLine;
-    if (!current) {
-      settings.statusLine = { type: 'command', command: STATUS_SCRIPT };
+    if (!current || current.command === STATUS_SCRIPT) {
+      settings.statusLine = { type: 'command', command: STATUS_CMD };
       fs.mkdirSync(path.dirname(CLAUDE_SETTINGS), { recursive: true });
       fs.writeFileSync(CLAUDE_SETTINGS, JSON.stringify(settings, null, 2) + '\n');
       console.log('[main] registered Monk status line in', CLAUDE_SETTINGS);
-    } else if (current.command !== STATUS_SCRIPT) {
+    } else if (current.command !== STATUS_CMD) {
       console.log('[main] a different statusLine is configured; usage limits will not be available');
     }
   } catch (err) {
@@ -245,7 +249,7 @@ ipcMain.handle('session:stats', (_e, cwd) => {
     if (rl) out.rate = { five: rl.five_hour || null, seven: rl.seven_day || null, spend: rl.spend_limit || null, at: status.at };
   }
   const configured = readJson(CLAUDE_SETTINGS)?.statusLine;
-  out.statusLineOk = !!configured && configured.command === STATUS_SCRIPT;
+  out.statusLineOk = !!configured && configured.command === STATUS_CMD;
   return out;
 });
 
