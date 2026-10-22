@@ -158,8 +158,14 @@ $sidebar.addEventListener('drop', async (e) => {
     if (folder) await addProjectPath(folder);
   }
 });
-// Dropping files on the terminal pastes their paths, like Terminal.app.
-function shellQuote(p) { return "'" + p.replace(/'/g, "'\\''") + "'"; }
+// Dropping files on the terminal pastes their paths, like Terminal.app: backslash-escaped
+// and sent as a paste (bracketed when the program asks for it). Claude Code only attaches
+// an image path as [Image #n] when it arrives as a paste; typed, it stays plain text.
+function shellEscape(p) { return p.replace(/[^A-Za-z0-9_\-.,:+=@%\/\u0080-￿]/g, '\\$&'); }
+function pastePaths(s, paths) {
+  s.term.paste(paths.map(shellEscape).join(' ') + ' ');
+  s.term.focus();
+}
 $terminals.addEventListener('dragover', (e) => {
   if (isRowDrag(e)) return;
   e.preventDefault();
@@ -175,9 +181,7 @@ $terminals.addEventListener('drop', async (e) => {
     const raw = window.api.pathForFile(file);
     if (raw) paths.push(await window.api.prepareDrop(raw));
   }
-  if (!paths.length) return;
-  window.api.ptyWrite(activeId, paths.map(shellQuote).join(' ') + ' ');
-  s.term.focus();
+  if (paths.length) pastePaths(s, paths);
 });
 
 // Dropping anywhere else should not navigate the window away.
