@@ -45,9 +45,11 @@ button {
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  /* The painting shows through wherever the opaque rows, header and footer don't cover it. */
+  background: var(--bg) url("sidebar.jpg") center / cover no-repeat;
 }
 #sidebar.drop-target { background: var(--hover); }
+#sidebar-drag, #sidebar-header, #sidebar-footer, .project { background: var(--bg); }
 
 #sidebar-drag {
   height: var(--titlebar-h);
