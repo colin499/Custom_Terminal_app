@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('api', {
   pathForFile: (file) => webUtils.getPathForFile(file),
   resolveFolder: (p) => ipcRenderer.invoke('projects:resolveFolder', p),
   prepareDrop: (p) => ipcRenderer.invoke('drop:prepare', p),
+  projectIcon: (project) => ipcRenderer.invoke('icon:project', { path: project.path, icon: project.icon }),
+  fileIcon: (file) => ipcRenderer.invoke('icon:file', file),
   sessionStats: (cwd) => ipcRenderer.invoke('session:stats', cwd),
 
   ptyCreate: (opts) => ipcRenderer.invoke('pty:create', opts),

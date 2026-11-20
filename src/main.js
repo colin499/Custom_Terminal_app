@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -106,6 +106,100 @@ ipcMain.handle('drop:prepare', (_e, file) => new Promise((resolve) => {
     resolve(out);
   });
 }));
+
+// ---- Project icons ----
+// Each sidebar row shows a small picture of what the project is. An image set by hand
+// (project.icon) wins; otherwise the folder is searched, a few levels deep, for the most
+// telling file: an app icon or logo, a built .app, a render or screenshot, any other image,
+// then a 3D model. macOS Quick Look draws the thumbnail, so models and PDFs work too.
+const ICON_IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.heic', '.tif', '.tiff', '.bmp', '.svg', '.icns']);
+const ICON_MODEL_EXT = new Set(['.stl', '.obj', '.usdz', '.3mf', '.step', '.stp']);
+const ICON_SKIP_DIRS = new Set(['node_modules', 'venv', 'env', '__pycache__', 'target', 'Pods', 'DerivedData', 'vendor', 'fonts', 'logs', 'tmp', 'cache']);
+const ICON_MAX_DEPTH = 3;
+const ICON_MAX_ENTRIES = 4000;
+const ICON_MAX_CANDIDATES = 400;
+
+function iconScore(name, ext, depth) {
+  const base = name.toLowerCase();
+  let score;
+  if (ext === '.app') score = 90;
+  else if (ICON_IMAGE_EXT.has(ext)) {
+    if (/^(app[-_ ]?)?(icon|logo|favicon)/.test(base)) score = 100;
+    else if (/thumb|preview|render|screenshot|screen shot|cover|hero|banner/.test(base)) score = 80;
+    else score = 50;
+  } else if (ICON_MODEL_EXT.has(ext)) score = 40;
+  else if (ext === '.pdf') score = 20;
+  else return 0;
+  return score - depth * 5;
+}
+
+async function iconCandidates(root) {
+  const found = [];
+  let seen = 0;
+  let level = [root];
+  for (let depth = 0; depth <= ICON_MAX_DEPTH && level.length; depth++) {
+    const next = [];
+    for (const dir of level) {
+      let entries;
+      try { entries = await fs.promises.readdir(dir, { withFileTypes: true }); } catch { continue; }
+      for (const ent of entries) {
+        if (++seen > ICON_MAX_ENTRIES || found.length >= ICON_MAX_CANDIDATES) break;
+        if (ent.name.startsWith('.')) continue;
+        const ext = path.extname(ent.name).toLowerCase();
+        const full = path.join(dir, ent.name);
+        if (ent.isDirectory() && ext !== '.app') {
+          if (!ICON_SKIP_DIRS.has(ent.name)) next.push(full);
+          continue;
+        }
+        const score = iconScore(ent.name, ext, depth);
+        if (score > 0) found.push({ file: full, score });
+      }
+    }
+    level = next;
+  }
+  // Newest first within a score, so a fresh render replaces an old one.
+  await Promise.all(found.map(async (c) => {
+    try { const st = await fs.promises.stat(c.file); c.mtime = st.mtimeMs; c.size = st.size; } catch { c.score = 0; }
+  }));
+  return found
+    .filter((c) => c.score > 0 && (c.size >= 500 || c.file.endsWith('.app')))
+    .sort((a, b) => b.score - a.score || b.mtime - a.mtime);
+}
+
+const thumbCache = new Map(); // "file:mtime" -> data URL, or null when Quick Look can't draw it
+
+async function thumbnail(file) {
+  let st;
+  try { st = await fs.promises.stat(file); } catch { return null; }
+  const key = `${file}:${st.mtimeMs}`;
+  if (thumbCache.has(key)) return thumbCache.get(key);
+  let url = null;
+  try {
+    const img = await Promise.race([
+      nativeImage.createThumbnailFromPath(file, { width: 128, height: 128 }),
+      new Promise((_r, reject) => setTimeout(() => reject(new Error('timed out')), 4000)),
+    ]);
+    if (!img.isEmpty()) url = img.toDataURL();
+  } catch (err) {
+    if (process.env.CT_DEBUG) console.log(`[main] no thumbnail for ${file}: ${err.message}`);
+  }
+  if (!url && file.endsWith('.app')) {
+    try { const img = await app.getFileIcon(file, { size: 'normal' }); if (!img.isEmpty()) url = img.toDataURL(); } catch {}
+  }
+  thumbCache.set(key, url);
+  return url;
+}
+
+ipcMain.handle('icon:file', (_e, file) => thumbnail(file));
+ipcMain.handle('icon:project', async (_e, { path: root, icon }) => {
+  if (icon) { const url = await thumbnail(icon); if (url) return url; }
+  const candidates = await iconCandidates(root);
+  for (const c of candidates.slice(0, 6)) {
+    const url = await thumbnail(c.file);
+    if (url) return url;
+  }
+  return null;
+});
 
 // ---- Claude Code status line integration ----
 // Claude Code can pipe a JSON status payload (model, context window, usage limits) to a

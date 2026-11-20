@@ -17,7 +17,7 @@ const THEME = {
   brightBlue: '#141210', brightMagenta: '#141210', brightCyan: '#141210', brightWhite: '#141210',
 };
 
-let projects = [];           // [{ id, name, path }]
+let projects = [];           // [{ id, name, path, icon? }]  icon: an image file chosen by hand
 let activeId = null;
 const sessions = new Map();  // id -> { term, fit, container, running }
 
@@ -32,6 +32,48 @@ const $title = document.getElementById('title-path');
 const $model = document.getElementById('title-model');
 const $launch = document.getElementById('launch-claude');
 
+// ---------- Project icons ----------
+// Each row shows a thumbnail found in the project folder (see "Project icons" in main.js).
+// Until one arrives, or when the folder has nothing to show, the row gets a block pattern
+// drawn from the project's name, so every row still looks different.
+const icons = new Map();     // id -> { url, at }
+const ICON_MAX_AGE = 30000;
+
+function patternIcon(name) {
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) { h ^= name.charCodeAt(i); h = Math.imul(h, 16777619); }
+  let rects = '';
+  for (let y = 0; y < 5; y++) {
+    for (let x = 0; x < 3; x++) {
+      if (!((h >>> (y * 3 + x)) & 1)) continue;
+      rects += `<rect x="${x}" y="${y}" width="1" height="1"/>`;
+      if (x < 2) rects += `<rect x="${4 - x}" y="${y}" width="1" height="1"/>`;
+    }
+  }
+  return `<svg viewBox="-1.5 -1.5 8 8" shape-rendering="crispEdges" fill="currentColor">${rects}</svg>`;
+}
+
+function paintIcon(li, p) {
+  const cell = li.querySelector('.icon');
+  const url = icons.get(p.id)?.url;
+  if (url) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.draggable = false;
+    cell.replaceChildren(img);
+  } else cell.innerHTML = patternIcon(p.name);
+}
+
+async function loadIcon(p, force) {
+  const have = icons.get(p.id);
+  if (!force && have && Date.now() - have.at < ICON_MAX_AGE) return;
+  icons.set(p.id, { url: have?.url || null, at: Date.now() });
+  const url = await window.api.projectIcon(p).catch(() => null);
+  icons.set(p.id, { url, at: Date.now() });
+  const li = Array.from($list.children).find((el) => el.dataset.id === p.id);
+  if (li) paintIcon(li, p);
+}
+
 // ---------- Projects ----------
 function renderProjects() {
   $list.innerHTML = '';
@@ -42,6 +84,7 @@ function renderProjects() {
     li.dataset.id = p.id;
     li.innerHTML = `
       <span class="index"></span>
+      <span class="icon"></span>
       <div class="info">
         <div class="name"></div>
         <div class="path"></div>
@@ -53,8 +96,9 @@ function renderProjects() {
     li.querySelector('.path').textContent = scratch ? 'No project · home folder' : p.path;
     li.querySelector('.path').title = p.path;
     li.addEventListener('click', () => activate(p.id));
-    if (scratch) li.querySelector('.remove').remove();
+    if (scratch) { li.querySelector('.remove').remove(); li.querySelector('.icon').remove(); }
     else {
+      paintIcon(li, p);
       li.querySelector('.remove').addEventListener('click', (e) => { e.stopPropagation(); removeProject(p.id); });
       wireRowDrag(li, p.id);
     }
@@ -146,6 +190,7 @@ async function addProjectPath(folder) {
   const project = { id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, name: folder.split('/').filter(Boolean).pop() || folder, path: folder };
   projects.push(project);
   await window.api.saveProjects(projects);
+  loadIcon(project);
   activate(project.id);
 }
 
@@ -160,9 +205,18 @@ $sidebar.addEventListener('drop', async (e) => {
   e.preventDefault();
   dragDepth = 0;
   $sidebar.classList.remove('drop-target');
+  // A single image (or model) file dropped on a project's row becomes that project's icon.
+  const row = e.target.closest?.('.project:not(.scratch)');
+  const target = row && projects.find((p) => p.id === row.dataset.id);
   for (const file of Array.from(e.dataTransfer.files)) {
     const raw = window.api.pathForFile(file);
     const folder = raw && await window.api.resolveFolder(raw);
+    if (target && folder && folder !== raw && e.dataTransfer.files.length === 1 && await window.api.fileIcon(raw)) {
+      target.icon = raw;
+      await window.api.saveProjects(projects);
+      loadIcon(target, true);
+      return;
+    }
     if (folder) await addProjectPath(folder);
   }
 });
@@ -205,6 +259,7 @@ async function removeProject(id) {
     sessions.delete(id);
   }
   projects = projects.filter((p) => p.id !== id);
+  icons.delete(id);
   await window.api.saveProjects(projects);
   if (activeId === id) {
     activeId = null;
@@ -277,6 +332,7 @@ function activate(id) {
   const project = findProject(id);
   if (!project) return;
   activeId = id;
+  if (project !== SCRATCH) loadIcon(project); // pick up a new render or screenshot
   for (const s of sessions.values()) s.container.classList.remove('visible');
   const session = ensureSession(project);
   session.container.classList.add('visible');
@@ -405,5 +461,6 @@ window.addEventListener('keydown', (e) => {
     document.fonts.load('700 12px "Space Mono"'),
   ]).catch(() => {});
   projects = await window.api.loadProjects();
+  for (const p of projects) loadIcon(p);
   activate(projects.length ? projects[0].id : SCRATCH.id);
 })();
