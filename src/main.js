@@ -176,7 +176,7 @@ async function thumbnail(file) {
   let url = null;
   try {
     const img = await Promise.race([
-      nativeImage.createThumbnailFromPath(file, { width: 128, height: 128 }),
+      nativeImage.createThumbnailFromPath(file, { width: 512, height: 512 }),
       new Promise((_r, reject) => setTimeout(() => reject(new Error('timed out')), 4000)),
     ]);
     if (!img.isEmpty()) url = img.toDataURL();

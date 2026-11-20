@@ -123,6 +123,20 @@ button {
 .project .icon img { object-fit: cover; }
 .project.active .icon { border-right-color: var(--bg); }
 
+/* Larger view of a row's icon, shown beside the sidebar while the icon is hovered. */
+#icon-preview {
+  position: fixed;
+  z-index: 50;
+  width: 256px;
+  height: 256px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  pointer-events: none;
+  display: none;
+}
+#icon-preview.visible { display: block; }
+#icon-preview img { width: 100%; height: 100%; display: block; object-fit: contain; }
+
 .project .info {
   flex: 1;
   min-width: 0;

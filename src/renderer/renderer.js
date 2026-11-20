@@ -72,10 +72,38 @@ async function loadIcon(p, force) {
   icons.set(p.id, { url, at: Date.now() });
   const li = Array.from($list.children).find((el) => el.dataset.id === p.id);
   if (li) paintIcon(li, p);
+  if (previewId === p.id) { if (url) $preview.firstChild.src = url; else hidePreview(); }
+}
+
+// Hovering a row's icon shows the same picture larger, beside the sidebar. Rows with only a
+// generated pattern have nothing more to show, so they get no preview.
+const $preview = document.createElement('div');
+$preview.id = 'icon-preview';
+$preview.appendChild(document.createElement('img'));
+document.body.appendChild($preview);
+let previewId = null;
+
+function showPreview(cell, id) {
+  const url = icons.get(id)?.url;
+  if (!url || draggingId !== null) return;
+  previewId = id;
+  $preview.firstChild.src = url;
+  $preview.classList.add('visible');
+  const row = cell.getBoundingClientRect();
+  const size = $preview.offsetHeight;
+  const top = Math.max(8, Math.min(row.top, window.innerHeight - size - 8));
+  $preview.style.top = `${top}px`;
+  $preview.style.left = `${$sidebar.getBoundingClientRect().right + 8}px`;
+}
+
+function hidePreview() {
+  previewId = null;
+  $preview.classList.remove('visible');
 }
 
 // ---------- Projects ----------
 function renderProjects() {
+  hidePreview();
   $list.innerHTML = '';
   for (const p of [SCRATCH, ...projects]) {
     const scratch = p === SCRATCH;
@@ -99,6 +127,9 @@ function renderProjects() {
     if (scratch) { li.querySelector('.remove').remove(); li.querySelector('.icon').remove(); }
     else {
       paintIcon(li, p);
+      const cell = li.querySelector('.icon');
+      cell.addEventListener('mouseenter', () => showPreview(cell, p.id));
+      cell.addEventListener('mouseleave', hidePreview);
       li.querySelector('.remove').addEventListener('click', (e) => { e.stopPropagation(); removeProject(p.id); });
       wireRowDrag(li, p.id);
     }
@@ -133,6 +164,7 @@ function wireRowDrag(li, id) {
   li.draggable = true;
   li.addEventListener('dragstart', (e) => {
     draggingId = id;
+    hidePreview();
     e.dataTransfer.setData(ROW_MIME, id);
     e.dataTransfer.effectAllowed = 'move';
     requestAnimationFrame(() => li.classList.add('dragging'));
