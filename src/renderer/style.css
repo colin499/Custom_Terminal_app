@@ -173,6 +173,10 @@ button {
 }
 .project.running .dot { background: currentColor; }
 
+/* Result of the last "Save everything" for this row: waiting, saved, or not saved. */
+.project .save { flex-shrink: 0; align-self: center; font-size: 14px; font-weight: 700; }
+.project .save:not(:empty) { padding: 0 6px; }
+
 .project .remove {
   visibility: hidden;
   width: 30px;
@@ -191,15 +195,17 @@ button {
 #sidebar-footer {
   border-top: 1px solid var(--line);
 }
-#sidebar-footer #launch-claude {
+#sidebar-footer button {
+  display: block;
   width: 100%;
   height: 44px;
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
-#sidebar-footer #launch-claude:hover { background: var(--fg); color: var(--bg); }
-#sidebar-footer #launch-claude:disabled { color: var(--muted); cursor: default; background: none; }
+#sidebar-footer button + button { border-top: 1px solid var(--line); }
+#sidebar-footer button:hover { background: var(--fg); color: var(--bg); }
+#sidebar-footer button:disabled { color: var(--muted); cursor: default; background: none; }
 
 /* ---- Main ---- */
 #main {

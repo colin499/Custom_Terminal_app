@@ -348,6 +348,42 @@ ipcMain.handle('session:stats', (_e, cwd) => {
   return out;
 });
 
+// ---- "Save everything" results ----
+// The save request asks Claude to end its reply with a line starting "MONK SAVED:" or
+// "MONK NOT SAVED:". Claude's replies land in the project's session log, so that is where to
+// look for it: the terminal screen also shows the request itself, which names both phrases.
+ipcMain.handle('save:status', (_e, { cwd, since }) => {
+  const dir = path.join(os.homedir(), '.claude', 'projects', encodeClaudeProjectDir(cwd));
+  let result = null; // { ok, note, at } from the newest matching reply
+  let names = [];
+  try { names = fs.readdirSync(dir).filter((n) => n.endsWith('.jsonl')); } catch {}
+  for (const name of names) {
+    const file = path.join(dir, name);
+    let text;
+    try {
+      const st = fs.statSync(file);
+      if (st.mtimeMs < since) continue;
+      const len = Math.min(st.size, 2 << 20); // a save reply is always near the end
+      const buf = Buffer.alloc(len);
+      const fd = fs.openSync(file, 'r');
+      try { text = buf.toString('utf8', 0, fs.readSync(fd, buf, 0, len, st.size - len)); } finally { fs.closeSync(fd); }
+    } catch { continue; }
+    for (const line of text.split('\n')) {
+      if (!line.includes('"type":"assistant"') || !/MONK (NOT )?SAVED/i.test(line)) continue;
+      let d; try { d = JSON.parse(line); } catch { continue; }
+      const at = Date.parse(d.timestamp);
+      if (!(at >= since) || !Array.isArray(d.message?.content)) continue;
+      for (const block of d.message.content) {
+        if (block.type !== 'text') continue;
+        const marks = [...block.text.matchAll(/^\W*MONK (NOT )?SAVED\W*(.*)$/gim)];
+        const m = marks[marks.length - 1];
+        if (m && (!result || at >= result.at)) result = { ok: !m[1], note: m[2].replace(/[*_`]+/g, '').trim(), at };
+      }
+    }
+  }
+  return result;
+});
+
 // ---- PTY ----
 ipcMain.handle('pty:create', (_e, { id, cwd, cols, rows }) => {
   if (ptys.has(id)) return true;
@@ -375,6 +411,24 @@ ipcMain.handle('pty:create', (_e, { id, cwd, cols, rows }) => {
   });
   return true;
 });
+// Tabs where Claude Code is the program in front, as opposed to a bare shell or another tool.
+// "Save everything" only types into these: the same text sent to a shell would run as a command.
+ipcMain.handle('pty:claudeTabs', () => new Promise((resolve) => {
+  // node-pty's own process name is no use here: Claude Code is a symlink to a versioned
+  // binary, so it reports "2.1.330". ps shows the command as typed, per terminal.
+  execFile('/bin/ps', ['-Ao', 'tty=,stat=,args='], { maxBuffer: 8 << 20 }, (err, out) => {
+    if (err) return resolve([]);
+    const claudeTtys = new Set();
+    for (const line of out.split('\n')) {
+      const m = line.match(/^(\S+)\s+(\S+)\s+(.*)$/);
+      // "+" in the state marks the terminal's foreground process group.
+      if (m && m[2].includes('+') && /(^|\/)claude(\s|$)|claude-code/.test(m[3])) claudeTtys.add(m[1]);
+    }
+    const ids = [];
+    for (const [id, p] of ptys) if (claudeTtys.has(path.basename(p.ptsName || p._pty || ''))) ids.push(id);
+    resolve(ids);
+  });
+}));
 ipcMain.on('pty:write', (_e, { id, data }) => { const p = ptys.get(id); if (p) p.write(data); });
 ipcMain.on('pty:resize', (_e, { id, cols, rows }) => {
   const p = ptys.get(id);

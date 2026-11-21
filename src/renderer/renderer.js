@@ -20,6 +20,7 @@ const THEME = {
 let projects = [];           // [{ id, name, path, icon? }]  icon: an image file chosen by hand
 let activeId = null;
 const sessions = new Map();  // id -> { term, fit, container, running }
+const saves = new Map();     // id -> { since, state: 'wait' | 'ok' | 'fail', note }  from the last "Save everything"
 
 // A fixed row for working outside any project: a shell (and Claude) in the home folder.
 const SCRATCH = { id: 'scratch', name: 'Scratch', path: window.api.home };
@@ -117,12 +118,19 @@ function renderProjects() {
         <div class="name"></div>
         <div class="path"></div>
       </div>
+      <span class="save"></span>
       <span class="dot" title="Shell running"></span>
       <button class="remove" title="Remove from list">×</button>`;
     li.querySelector('.index').textContent = scratch ? '~' : String(projects.indexOf(p) + 1).padStart(2, '0');
     li.querySelector('.name').textContent = p.name;
     li.querySelector('.path').textContent = scratch ? 'No project · home folder' : p.path;
     li.querySelector('.path').title = p.path;
+    const save = saves.get(p.id);
+    if (save) {
+      const mark = li.querySelector('.save');
+      mark.textContent = save.state === 'ok' ? '✓' : save.state === 'fail' ? '!' : '…';
+      mark.title = save.state === 'wait' ? 'Waiting for Claude to finish saving' : save.note || (save.state === 'ok' ? 'Saved' : 'Not saved');
+    }
     li.addEventListener('click', () => activate(p.id));
     if (scratch) { li.querySelector('.remove').remove(); li.querySelector('.icon').remove(); }
     else {
@@ -474,6 +482,46 @@ $launch.addEventListener('click', () => {
   if (!s || !s.running) return;
   window.api.ptyWrite(activeId, 'claude\r');
   s.term.focus();
+});
+
+// "Save everything": before quitting, ask Claude in every tab where it is running to save its
+// work, so no tab has to be visited by hand. Tabs sitting at a shell prompt are left alone.
+// A Claude that is mid-task queues the message and gets to it when it finishes. Each asked
+// row shows "…" until Claude's reply reports the result, then a check, or "!" if it couldn't.
+const SAVE_PROMPT = 'Save and back up everything you have done in this project. If this folder is a git repository, commit all uncommitted work and push it to the remote; if it has no remote, commit and say it was not pushed. If it is not a git repository, do not create one: make sure all the work is written to its files in this folder. End your reply with one final line that starts with "MONK SAVED:" followed by a few words on what was saved, or "MONK NOT SAVED:" followed by what went wrong.';
+const $saveAll = document.getElementById('save-all');
+const SAVE_LABEL = $saveAll.textContent;
+let saveTimer = null;
+
+async function pollSaves() {
+  let waiting = 0, changed = false;
+  for (const [id, save] of saves) {
+    if (save.state !== 'wait') continue;
+    const project = findProject(id);
+    const res = project && sessions.get(id)?.running ? await window.api.saveStatus(project.path, save.since).catch(() => null) : null;
+    if (res) { save.state = res.ok ? 'ok' : 'fail'; save.note = res.note; changed = true; }
+    else if (!project || !sessions.get(id)?.running) { saves.delete(id); changed = true; } // tab closed before it answered
+    else waiting++;
+  }
+  if (changed) renderProjects();
+  if (!waiting) { clearInterval(saveTimer); saveTimer = null; }
+}
+
+$saveAll.addEventListener('click', async () => {
+  $saveAll.disabled = true;
+  const ids = (await window.api.claudeTabs().catch(() => [])).filter((id) => sessions.get(id)?.running);
+  saves.clear();
+  for (const id of ids) {
+    saves.set(id, { since: Date.now(), state: 'wait', note: '' });
+    // Sent as a paste so Claude Code takes it as one message, then Enter once it has landed.
+    sessions.get(id).term.paste(SAVE_PROMPT);
+    setTimeout(() => window.api.ptyWrite(id, '\r'), 300);
+  }
+  renderProjects();
+  if (ids.length && !saveTimer) saveTimer = setInterval(pollSaves, 2000);
+  $saveAll.textContent = ids.length ? `Asked ${ids.length} ${ids.length === 1 ? 'tab' : 'tabs'}` : 'No Claude running';
+  setTimeout(() => { $saveAll.textContent = SAVE_LABEL; $saveAll.disabled = false; }, 2500);
+  sessions.get(activeId)?.term.focus();
 });
 
 // Cmd+1..9 switches projects, Cmd+0 is the scratch row, Cmd+N adds a project.

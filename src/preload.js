@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('api', {
   ptyCreate: (opts) => ipcRenderer.invoke('pty:create', opts),
   ptyWrite: (id, data) => ipcRenderer.send('pty:write', { id, data }),
   ptyResize: (id, cols, rows) => ipcRenderer.send('pty:resize', { id, cols, rows }),
+  saveStatus: (cwd, since) => ipcRenderer.invoke('save:status', { cwd, since }),
+  claudeTabs: () => ipcRenderer.invoke('pty:claudeTabs'),
   ptyKill: (id) => ipcRenderer.send('pty:kill', { id }),
   onPtyData: (cb) => ipcRenderer.on('pty:data', (_e, payload) => cb(payload)),
   onPtyExit: (cb) => ipcRenderer.on('pty:exit', (_e, payload) => cb(payload)),
